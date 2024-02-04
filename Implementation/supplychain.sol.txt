@@ -1,0 +1,98 @@
+// SPDX-License-Identifier: MIT
+// compiler version must be greater than or equal to 0.8.10 and less than 0.9.0
+
+
+pragma solidity ^0.8.0;
+
+contract SupplyChain {
+    
+    struct Product {
+    uint productId;
+    string productName;
+    uint price;
+    address farmerAddress;
+    address distributorAddress;
+    uint status;
+    address[] history;  // new field
+    }
+
+    
+    struct Farmer {
+        string farmerName;
+        string farmerLocation;
+        uint phone;
+        bool isRegistered;
+    }
+    
+    struct Distributor {
+        string distributorName;
+        string distributorLocation;
+        uint phone;
+        bool isRegistered;
+    }
+    
+    mapping(uint => Product) public products;
+    mapping(address => Farmer) public farmers;
+    mapping(address => Distributor) public distributors;
+    
+    uint public productCounter;
+    
+    event ProductAdded(uint productId, string productName, uint price, address farmerAddress);
+    event FarmerRegistered(address farmerAddress, string farmerName, string farmerLocation, uint phone);
+    event DistributorRegistered(address distributorAddress, string distributorName, string distributorLocation, uint phone);
+    
+    modifier Seller() {
+        require(msg.sender == tx.origin, "Only the Seller can access this function");
+        _;
+    }
+    
+    function addProduct(string memory _productName, uint _price) public {
+        productCounter++;
+        products[productCounter] = Product(productCounter, _productName, _price, msg.sender,address(0),0,new address[](0));
+        emit ProductAdded(productCounter, _productName, _price, msg.sender);
+    }
+    
+    function registerFarmer(string memory _farmerName, string memory _farmerLocation, uint _phone) public {
+        require(!farmers[msg.sender].isRegistered, "The farmer is already registered");
+        farmers[msg.sender] = Farmer(_farmerName, _farmerLocation, _phone, true);
+        emit FarmerRegistered(msg.sender, _farmerName, _farmerLocation, _phone);
+    }
+    
+    function registerDistributor(string memory _distributorName, string memory _distributorLocation, uint _phone) public {
+        require(!distributors[msg.sender].isRegistered, "The distributor is already registered");
+        distributors[msg.sender] = Distributor(_distributorName, _distributorLocation, _phone, true);
+        emit DistributorRegistered(msg.sender, _distributorName, _distributorLocation, _phone);
+    }
+    
+    function assignProductToDistributor(uint _productId, address _distributorAddress) public {
+        require(products[_productId].farmerAddress == msg.sender, "Only the farmer who added the product can assign it to a distributor");
+        require(distributors[_distributorAddress].isRegistered, "The distributor is not registered");
+        require(products[_productId].status == 0, "The product is already assigned to a distributor or sold");
+        products[_productId].distributorAddress = _distributorAddress;
+        products[_productId].status = 1;
+    }
+    
+    function getProductStatus(uint _productId) public view returns (uint) {
+        return products[_productId].status;
+    }
+    
+    function getFarmerDetails(address _farmerAddress) public view returns (string memory, string memory, uint) {
+        require(farmers[_farmerAddress].isRegistered, "The farmer is not registered");
+        return (farmers[_farmerAddress].farmerName, farmers[_farmerAddress].farmerLocation, farmers[_farmerAddress].phone);
+    }
+    
+    function getDistributorDetails(address _distributorAddress) public view returns (string memory, string memory, uint) {
+        require(distributors[_distributorAddress].isRegistered, "The distributor is not registered");
+        return (distributors[_distributorAddress].distributorName, distributors[_distributorAddress].distributorLocation, distributors[_distributorAddress].phone);
+    }
+
+    function markProductAsSold(uint _productId) public Seller {
+        require(products[_productId].status == 1, "The product is not assigned to any distributor");
+        products[_productId].status = 2;
+    }
+
+    
+
+
+
+}
